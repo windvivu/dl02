@@ -48,7 +48,7 @@ if __name__ == '__main__':
         ToTensor(),
         Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.255)),
     ])
-    dataset = VOCDataset(root='./data/voc', year='2007', image_set='trainval', download=False, transform=train_transform)
+    dataset = VOCDataset(root='./data/voc', year='2007', image_set='trainval', download=True, transform=train_transform)
     index = 2289 
     image, bboxes = dataset[index]
 

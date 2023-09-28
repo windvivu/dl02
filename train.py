@@ -1,5 +1,5 @@
-from torchvision.models.detection import fasterrcnn_resnet50_fpn
-from torchvision.models.detection.faster_rcnn import FasterRCNN_ResNet50_FPN_Weights, FastRCNNPredictor
+from torchvision.models.detection import fasterrcnn_resnet50_fpn, fasterrcnn_mobilenet_v3_large_fpn
+from torchvision.models.detection.faster_rcnn import FasterRCNN_ResNet50_FPN_Weights, FastRCNNPredictor, FasterRCNN_MobileNet_V3_Large_FPN_Weights
 from dataset import VOCDataset
 from pprint import pprint
 import torch
@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, ToTensor, Normalize, RandomAffine, Resize, ColorJitter
 import torch.optim as optim
 import argparse
+from tqdm.autonotebook import tqdm
 
 def collate_fn(batch):
     all_images = []
@@ -76,23 +77,26 @@ def train(args):
     train_dataloader = DataLoader(train_set, **train_params)
     val_dataloader = DataLoader(val_set, **val_params)
 
-    model = fasterrcnn_resnet50_fpn(weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT)
+    model = fasterrcnn_mobilenet_v3_large_fpn(weights=FasterRCNN_MobileNet_V3_Large_FPN_Weights.DEFAULT)
     model.roi_heads.box_predictor = FastRCNNPredictor(in_channels=model.roi_heads.box_predictor.cls_score.in_features, num_classes=21)
     model.to(device)
     model.train()
 
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
-    for images, targets in train_dataloader:
-        images = list(image.to(device) for image in images)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-        loss_components = model(images, targets)
-        losses = sum(loss for loss in loss_components.values())
+    for epoch in range(args.epochs):
+        progressbar = tqdm(train_dataloader, colour='cyan', ncols=100)
 
-        optimizer.zero_grad()
-        losses.backward()
-        optimizer.step()
-        print(losses) 
+        for images, targets in progressbar:
+            images = list(image.to(device) for image in images)
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            loss_components = model(images, targets)
+            losses = sum(loss for loss in loss_components.values())
+
+            optimizer.zero_grad()
+            losses.backward()
+            optimizer.step()
+            progressbar.set_description("Epoch {}/{}. Loss {:0.4f}".format(epoch+1, args.epochs, losses))
 
 if __name__ == '__main__':
     args = get_args()
