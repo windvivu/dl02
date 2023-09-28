@@ -8,6 +8,10 @@ from torchvision.transforms import Compose, ToTensor, Normalize, RandomAffine, R
 import torch.optim as optim
 import argparse
 from tqdm.autonotebook import tqdm
+from torch.utils.tensorboard import SummaryWriter
+import os
+import shutil
+import numpy as np
 
 def collate_fn(batch):
     all_images = []
@@ -80,11 +84,17 @@ def train(args):
     model = fasterrcnn_mobilenet_v3_large_fpn(weights=FasterRCNN_MobileNet_V3_Large_FPN_Weights.DEFAULT)
     model.roi_heads.box_predictor = FastRCNNPredictor(in_channels=model.roi_heads.box_predictor.cls_score.in_features, num_classes=21)
     model.to(device)
-    model.train()
-
+    
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    if os.path.isdir(args.log_path):
+        shutil.rmtree(args.log_path)
+    os.makedirs(args.log_path)
+    writer = SummaryWriter(args.log_path)
 
     for epoch in range(args.epochs):
+        
+        model.train()
+        train_loss = []
         progressbar = tqdm(train_dataloader, colour='cyan', ncols=100)
 
         for images, targets in progressbar:
@@ -96,7 +106,10 @@ def train(args):
             optimizer.zero_grad()
             losses.backward()
             optimizer.step()
-            progressbar.set_description("Epoch {}/{}. Loss {:0.4f}".format(epoch+1, args.epochs, losses))
+            train_loss.append(losses.item())
+            avg_loss = np.mean(train_loss)
+            progressbar.set_description("Epoch {}/{}. Loss {:0.4f}".format(epoch+1, args.epochs, avg_loss))
+            writer.add_scalar("Train/Loss", avg_loss, epoch * len(train_dataloader) + iter)
 
 if __name__ == '__main__':
     args = get_args()
