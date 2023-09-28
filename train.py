@@ -61,7 +61,7 @@ def train():
         images = list(image.to(device) for image in images)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
         loss_components = model(images, targets)
-        print(loss_components)
+        losses = sum(loss for loss in loss_components.values())
 
 if __name__ == '__main__':
     train()     
