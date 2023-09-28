@@ -12,6 +12,8 @@ from torch.utils.tensorboard import SummaryWriter
 import os
 import shutil
 import numpy as np
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
+from pprint import pprint
 
 def collate_fn(batch):
     all_images = []
@@ -92,7 +94,7 @@ def train(args):
     writer = SummaryWriter(args.log_path)
 
     for epoch in range(args.epochs):
-        
+        # TRAINING STEP
         model.train()
         train_loss = []
         progressbar = tqdm(train_dataloader, colour='cyan', ncols=100)
@@ -110,6 +112,21 @@ def train(args):
             avg_loss = np.mean(train_loss)
             progressbar.set_description("Epoch {}/{}. Loss {:0.4f}".format(epoch+1, args.epochs, avg_loss))
             writer.add_scalar("Train/Loss", avg_loss, epoch * len(train_dataloader) + iter)
+
+        # VALIDATION STEP
+        model.eval()
+        metric = MeanAveragePrecision(iou_type="bbox")
+        progressbar = tqdm(val_dataloader, colour='green', ncols=100)
+        for iter, (images, targets) in enumerate(progressbar):
+            images = list(image.to(device) for image in images)
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            with torch.no_grad():
+                prediction = model(images, targets)
+                metric.update(prediction, targets)
+        
+        mAP = metric.compute()
+        pprint(mAP)
+              
 
 if __name__ == '__main__':
     args = get_args()
