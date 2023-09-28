@@ -97,7 +97,7 @@ def train(args):
         train_loss = []
         progressbar = tqdm(train_dataloader, colour='cyan', ncols=100)
 
-        for images, targets in progressbar:
+        for iter, (images, labels) in enumerate(progressbar):
             images = list(image.to(device) for image in images)
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
             loss_components = model(images, targets)
